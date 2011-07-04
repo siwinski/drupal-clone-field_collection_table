@@ -1,0 +1,143 @@
+<?php
+
+/**
+ * @file
+ * Module implementing a field-collection table formatter.
+ */
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function field_collection_table_field_formatter_info() {
+  return array(
+    'field_collection_table_view' => array(
+      'label' => t('Table field-collection items'),
+      'field types' => array('field_collection'),
+      'settings' =>  array(
+        'edit' => t('Edit'),
+        'delete' => t('Delete'),
+        'add' => t('Add'),
+        'description' => TRUE,
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function field_collection_table_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  $settings = $display['settings'];
+
+  switch ($display['type']) {
+    case 'field_collection_table_view':
+      $header = array();
+      $field_names = array();
+      foreach (field_info_instances('field_collection_item', $field['field_name']) as $field_collection_item) {
+        $weight = $field_collection_item['display']['default']['weight'];
+        $field_names[$weight] = $field_collection_item['field_name'];
+        $header[$weight] = array(
+          'data' => $field_collection_item['label'],
+          'class' => $field_names[$weight],
+        );
+      }
+      ksort($header);
+      ksort($field_names);
+
+      $rows = array();
+      foreach ($items as $delta => $item) {
+        if ($field_collection = field_collection_field_get_entity($item)) {
+          $content = $field_collection->view();
+          $content = array_shift($content['field_collection_item']);
+          $content['#empty'] = '<span class="empty_field"></span>';
+          $column = array();
+          foreach ($field_names as $field_name) {
+            if (isset($content[$field_name])) {
+              $field_data_items = array();
+              foreach ($content[$field_name]['#items'] as $key => $value) {
+                $field_data_items[] = drupal_render($content[$field_name][$key]);
+              }
+              $field_data = implode($field_data_items);
+            }
+            else {
+              $field_data = $content['#empty'];
+            }
+            $column[] = array(
+              'data' => $field_data,
+              'class' => $field_name,
+            );
+          }
+        }
+
+        $links = array();
+        foreach (array('edit', 'delete') as $op) {
+          if ($settings[$op] && field_collection_item_access($op == 'edit' ? 'update' : $op, $field_collection)) {
+            $links[] = l($settings[$op], $field_collection->path() . '/' . $op, array('query' => drupal_get_destination()));
+            $header['operations'] = t('Operations');
+          }
+        }
+
+        if ($links) {
+          $output = theme('item_list', array('items' => $links));
+          $column[] = array(
+            'data' => $output,
+            'class' => "field_collection_item_operations",
+          );
+        }
+
+        $rows[] = array(
+          'data' => $column,
+          'class' => array('field_collection_item'),
+        );
+      }
+
+      $element[0] = array(
+        '#theme' => 'table',
+        '#header' => $header,
+        '#rows' => $rows,
+      );
+      break;
+  }
+
+  if ($settings['add'] && ($field['cardinality'] == FIELD_CARDINALITY_UNLIMITED || count($items) < $field['cardinality'])) {
+    // Check whether the current is allowed to create a new item.
+    $field_collection_item = entity_create('field_collection_item', array('field_name' => $field['field_name']));
+    $field_collection_item->setHostEntity($entity_type, $entity, LANGUAGE_NONE, FALSE);
+    if (field_collection_item_access('create', $field_collection_item)) {
+      $path = field_collection_field_get_path($field);
+      list($id) = entity_extract_ids($entity_type, $entity);
+      $element['#suffix'] = '';
+      if (!empty($settings['description'])) {
+        $element['#suffix'] .= '<div class="description field-collection-description">' . field_filter_xss($instance['description']) . '</div>';
+      }
+      $add_path = $path . '/add/' . $entity_type . '/' . $id;
+      $element['#suffix'] .= '<ul class="action-links action-links-field-collection-add"><li>' . l($settings['add'], $add_path, array('query' => drupal_get_destination())) . "</li></ul>";
+    }
+  }
+  // If there is no add link, add a special class to the last item.
+  if (empty($element['#suffix'])) {
+    $index = count(element_children($element)) - 1;
+    $element[$index]['#attributes']['class'][] = 'field-collection-view-final';
+  }
+
+  $element += array('#prefix' => '', '#suffix' => '');
+  $element['#prefix'] .= '<div class="field-collection-container clearfix">';
+  $element['#suffix'] .= '</div>';
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_settings_form().
+ */
+function field_collection_table_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  return field_collection_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state);
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ */
+function field_collection_table_field_formatter_settings_summary($field, $instance, $view_mode) {
+  return field_collection_field_formatter_settings_summary($field, $instance, $view_mode);
+}
