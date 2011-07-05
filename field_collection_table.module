@@ -184,15 +184,20 @@ function field_collection_table_form_alter(&$form, &$form_state, $form_id) {
  */
 function field_collection_table_pre_render_field($element) {
   foreach (field_info_instances($element['#entity_type'], $element['#bundle']) as $field_name => $instance) {
-    $item = &$element[$field_name][$element[$field_name]['#language']];
-    $children = element_children($item);
-    // Hide title for reference fields.
-    if (empty($children)) {
-      $item['#title_display'] = 'invisible';
+    if (isset($element[$field_name][$element[$field_name]['#language']])) {
+      $item = &$element[$field_name][$element[$field_name]['#language']];
+      $children = element_children($item);
+      // Hide title for reference fields.
+      if (empty($children)) {
+        $item['#title_display'] = 'invisible';
+      }
+      // Hide title for regular fields.
+      foreach ($children as $child) {
+        $item[$child]['value']['#title_display'] = 'invisible';
+      }
     }
-    // Hide title for regular fields.
-    foreach ($children as $child) {
-      $item[$child]['value']['#title_display'] = 'invisible';
+    else {
+      $element[$field_name]['#label_display'] = 'hidden';
     }
   }
   return $element;
@@ -220,7 +225,12 @@ function theme_field_collection_table_multiple_value_field($variables) {
   $header = array();
   $rows = array();
   foreach (field_info_instances($element['#entity_type'], $element['#bundle']) as $field_name => $instance) {
-    $header[] = $element[$field_name][$element[$field_name]['#language']]['#title'];
+    if (isset($element[$field_name][$element[$field_name]['#language']])) {
+      $header[] = $element[$field_name][$element[$field_name]['#language']]['#title'];
+    }
+    else {
+      $header[] = $element[$field_name]['#title'];
+    }
     $rows[] = drupal_render($element[$field_name]);
   }
   $output .= theme('table', array('header' => $header, 'rows' => array($rows)));
@@ -301,4 +311,11 @@ function theme_field_collection_table_multiple_value_fields($variables) {
   }
 
   return $output;
+}
+
+function field_collection_table_entity_view($entity, $type, $view_mode, $langcode) {
+  if ($type == 'field_collection_item') {
+    $entity->content['#theme'] = 'field_collection_table_multiple_value_field';
+    $entity->content['#pre_render'][] = 'field_collection_table_pre_render_field';
+  }
 }
