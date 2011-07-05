@@ -137,14 +137,6 @@ function field_collection_table_theme() {
 }
 
 /**
- * Implements hook_form_FORM_ID_alter().
- */
-function field_collection_table_form_field_collection_item_form_alter(&$form, &$form_state, $form_id) {
-  $form['#theme'] = 'field_collection_table_multiple_value_field';
-  $form['#pre_render'][] = 'field_collection_table_pre_render_field';
-}
-
-/**
  * Implements hook_form_alter().
  */
 function field_collection_table_form_alter(&$form, &$form_state, $form_id) {
@@ -152,10 +144,16 @@ function field_collection_table_form_alter(&$form, &$form_state, $form_id) {
     foreach (field_info_instances($form['#entity_type'], $form['#bundle']) as $field_name => $instance) {
       $field_info = field_info_field($field_name);
       if ($field_info['type'] == 'field_collection') {
-        $form[$field_name][$form[$field_name]['#language']]['#theme'] = 'field_collection_table_multiple_value_fields';
-        $form[$field_name][$form[$field_name]['#language']]['#pre_render'][] = 'field_collection_table_pre_render_multiple_fields';
+        if (isset($form[$field_name])) {
+          $form[$field_name][$form[$field_name]['#language']]['#theme'] = 'field_collection_table_multiple_value_fields';
+          $form[$field_name][$form[$field_name]['#language']]['#pre_render'][] = 'field_collection_table_pre_render_multiple_fields';
+        }
       }
     }
+  }
+  if ($form_id == 'field_collection_item_form') {
+    $form['#theme'] = 'field_collection_table_multiple_value_field';
+    $form['#pre_render'][] = 'field_collection_table_pre_render_field';
   }
 }
 
