@@ -199,7 +199,6 @@ function field_collection_table_pre_render_multiple_fields($element) {
  */
 function theme_field_collection_table_multiple_value_field($variables) {
   $element = $variables['element'];
-  $output = '';
   $header = array();
   $rows = array();
   foreach (field_info_instances($element['#entity_type'], $element['#bundle']) as $field_name => $instance) {
@@ -212,9 +211,14 @@ function theme_field_collection_table_multiple_value_field($variables) {
     }
     $rows[] = drupal_render($field);
   }
-  $output .= theme('table', array('header' => $header, 'rows' => array($rows)));
-  $output .= drupal_render_children($element);
-  return $output;
+  $element['table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => array($rows),
+    '#weight' => 10,
+  );
+  uasort($element, 'element_sort');
+  return drupal_render_children($element);
 }
 
 /**
