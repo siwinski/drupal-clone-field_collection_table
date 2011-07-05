@@ -141,3 +141,164 @@ function field_collection_table_field_formatter_settings_form($field, $instance,
 function field_collection_table_field_formatter_settings_summary($field, $instance, $view_mode) {
   return field_collection_field_formatter_settings_summary($field, $instance, $view_mode);
 }
+
+/**
+ * Implements hook_theme().
+ */
+function field_collection_table_theme() {
+  return array(
+    'field_collection_table_multiple_value_field' => array(
+      'render element' => 'element',
+    ),
+    'field_collection_table_multiple_value_fields' => array(
+      'render element' => 'element',
+    ),
+  );
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function field_collection_table_form_field_collection_item_form_alter(&$form, &$form_state, $form_id) {
+  $form['#theme'] = 'field_collection_table_multiple_value_field';
+  $form['#pre_render'][] = 'field_collection_table_pre_render_field';
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function field_collection_table_form_alter(&$form, &$form_state, $form_id) {
+  if (isset($form['#entity_type']) && isset($form['#bundle'])) {
+    foreach (field_info_instances($form['#entity_type'], $form['#bundle']) as $field_name => $instance) {
+      $field_info = field_info_field($field_name);
+      if ($field_info['type'] == 'field_collection') {
+        $form[$field_name][$form[$field_name]['#language']]['#theme'] = 'field_collection_table_multiple_value_fields';
+        $form[$field_name][$form[$field_name]['#language']]['#pre_render'][] = 'field_collection_table_pre_render_multiple_fields';
+      }
+    }
+  }
+}
+
+/**
+ * Callback for #pre_render for a single row, hide the titles for each field.
+ */
+function field_collection_table_pre_render_field($element) {
+  foreach (field_info_instances($element['#entity_type'], $element['#bundle']) as $field_name => $instance) {
+    $item = &$element[$field_name][$element[$field_name]['#language']];
+    $children = element_children($item);
+    // Hide title for reference fields.
+    if (empty($children)) {
+      $item['#title_display'] = 'invisible';
+    }
+    // Hide title for regular fields.
+    foreach ($children as $child) {
+      $item[$child]['value']['#title_display'] = 'invisible';
+    }
+  }
+  return $element;
+}
+
+/**
+ * Callback for #pre_render for multiple rows, hide the titles for each field.
+ */
+function field_collection_table_pre_render_multiple_fields($element) {
+  foreach (element_children($element) as $key) {
+    // Skip the 'add_more' element.
+    if (is_numeric($key)) {
+      $element[$key] = field_collection_table_pre_render_field($element[$key]);
+    }
+  }
+  return $element;
+}
+
+/**
+ * Print a single row of multiple fields.
+ */
+function theme_field_collection_table_multiple_value_field($variables) {
+  $element = $variables['element'];
+  $output = '';
+  $header = array();
+  $rows = array();
+  foreach (field_info_instances($element['#entity_type'], $element['#bundle']) as $field_name => $instance) {
+    $header[] = $element[$field_name][$element[$field_name]['#language']]['#title'];
+    $rows[] = drupal_render($element[$field_name]);
+  }
+  $output .= theme('table', array('header' => $header, 'rows' => array($rows)));
+  $output .= drupal_render_children($element);
+  return $output;
+}
+
+/**
+ * Replacement for theme_field_multiple_value_form().
+ *
+ * Each field is printed in a separate cell.
+ */
+function theme_field_collection_table_multiple_value_fields($variables) {
+  $element = $variables['element'];
+  $output = '';
+
+  if ($element['#cardinality'] > 1 || $element['#cardinality'] == FIELD_CARDINALITY_UNLIMITED) {
+    $table_id = drupal_html_id($element['#field_name'] . '_values');
+    $order_class = $element['#field_name'] . '-delta-order';
+    $required = !empty($element['#required']) ? '<span class="form-required" title="' . t('This field is required. ') . '">*</span>' : '';
+
+    $rows = array();
+
+    // Sort items according to '_weight' (needed when the form comes back after
+    // preview or failed validation)
+    $items = array();
+    foreach (element_children($element) as $key) {
+      if ($key === 'add_more') {
+        $add_more_button = &$element[$key];
+      }
+      else {
+        $items[] = &$element[$key];
+      }
+    }
+    usort($items, '_field_sort_items_value_helper');
+
+    $header = array(
+      array(
+        'data' => '<label>' . t('!title: !required', array('!title' => $element['#title'], '!required' => $required)) . "</label>",
+        'class' => array('field-label'),
+      ),
+    );
+
+    // Add the items as table rows.
+    foreach ($items as $key => $item) {
+      $item['_weight']['#attributes']['class'] = array($order_class);
+      $cells = array(
+        array('data' => '', 'class' => array('field-multiple-drag')),
+      );
+      foreach (element_children($item) as $child) {
+        if (isset($item[$child]['#language']) && $key == 0) {
+          $header[] = array(
+            'data' => '<label>' . t('!title', array('!title' => $item[$child][$item[$child]['#language']]['#title'])) . '</label>',
+            'class' => array('field-label'),
+          );
+        }
+        $cells[] = drupal_render($item[$child]);
+      }
+      $rows[] = array(
+        'data' => $cells,
+        'class' => array('draggable'),
+      );
+    }
+    $header[] = t('Order');
+
+    $output = '<div class="form-item">';
+    $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => $table_id, 'class' => array('field-multiple-table'))));
+    $output .= $element['#description'] ? '<div class="description">' . $element['#description'] . '</div>' : '';
+    $output .= '<div class="clearfix">' . drupal_render($add_more_button) . '</div>';
+    $output .= '</div>';
+
+    drupal_add_tabledrag($table_id, 'order', 'sibling', $order_class);
+  }
+  else {
+    foreach (element_children($element) as $key) {
+      $output .= drupal_render($element[$key]);
+    }
+  }
+
+  return $output;
+}
