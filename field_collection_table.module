@@ -279,11 +279,35 @@ function theme_field_collection_table_multiple_value_fields($variables) {
     }
     $header[] = t('Order');
 
-    $output = '<div class="form-item">';
-    $output .= theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => $table_id, 'class' => array('field-multiple-table'))));
-    $output .= $element['#description'] ? '<div class="description">' . $element['#description'] . '</div>' : '';
-    $output .= '<div class="clearfix">' . drupal_render($add_more_button) . '</div>';
-    $output .= '</div>';
+    $output = array(
+      '#prefix' => '<div class="form-item">',
+      '#suffix' => '</div>',
+    );
+    $output[] = array(
+      '#theme' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
+      '#attributes' => array(
+        'id' => $table_id,
+        'class' => array(
+          'field-multiple-table',
+        ),
+      ),
+    );
+    if (!empty($element['#description'])) {
+      $output[] = array(
+        '#prefix' => '<div class="description">',
+        '#suffix' => '</div>',
+        '#markup' => $element['#description'],
+      );
+    }
+    $output[] = array(
+      '#prefix' => '<div class="clearfix">',
+      '#suffix' => '</div>',
+      '#markup' => drupal_render($add_more_button),
+    );
+
+    $output = drupal_render($output);
 
     drupal_add_tabledrag($table_id, 'order', 'sibling', $order_class);
   }
