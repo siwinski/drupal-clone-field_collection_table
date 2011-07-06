@@ -112,7 +112,7 @@ function field_collection_table_field_formatter_view($entity_type, $entity, $fie
  * Implements hook_field_formatter_settings_form().
  */
 function field_collection_table_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
-  return field_collection_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state);
+  return field_collection_field_formatter_settings_form($field, $instance, $view_mode, $form, $form_state);
 }
 
 /**
