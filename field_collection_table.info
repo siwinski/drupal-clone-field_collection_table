@@ -1,4 +1,5 @@
 name = Field Collection Table
 description = Provides a field-collection table formatter.
 core = 7.x
-dependencies = field_collection
+configure = admin/config/user-interface/field_collection_table
+dependencies[] = field_collection
