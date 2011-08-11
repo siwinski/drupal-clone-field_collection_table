@@ -159,7 +159,7 @@ function field_collection_table_theme() {
  * Implements hook_form_alter().
  */
 function field_collection_table_form_alter(&$form, &$form_state, $form_id) {
-  if (!variable_get('field_collection_table_format_form', FALSE)) {
+  if (!variable_get('field_collection_table_format_form', TRUE)) {
     return;
   }
 

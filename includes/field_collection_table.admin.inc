@@ -13,7 +13,7 @@ function field_collection_table_admin_settings() {
     '#type' => 'checkbox',
     '#title' => t('Format forms as table'),
     '#description' => t('If checked, all Field Collection forms will be formatted as tables.'),
-    '#default_value' => variable_get('field_collection_table_format_form', FALSE),
+    '#default_value' => variable_get('field_collection_table_format_form', TRUE),
   );
 
   return system_settings_form($form);
