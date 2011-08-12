@@ -294,6 +294,7 @@ function theme_field_collection_table_multiple_value_fields($variables) {
 
     // Add the items as table rows.
     foreach ($items as $key => $item) {
+      uasort($item, 'element_sort');
       $item['_weight']['#attributes']['class'] = array($order_class);
       $cells = array(
         array('data' => '', 'class' => array('field-multiple-drag')),
