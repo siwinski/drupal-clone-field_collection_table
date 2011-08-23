@@ -96,7 +96,7 @@ function field_collection_table_field_formatter_view($entity_type, $entity, $fie
         );
 
         foreach (array('edit', 'delete') as $op) {
-          if (isset($settings[$op]) && field_collection_item_access($op == 'edit' ? 'update' : $op, $field_collection)) {
+          if (!empty($settings[$op]) && field_collection_item_access($op == 'edit' ? 'update' : $op, $field_collection)) {
             $links['#links'][$op] = array(
               'title' => $settings[$op],
               'href' => $field_collection->path() . '/' . $op,
