@@ -77,7 +77,10 @@ function field_collection_table_field_formatter_view($entity_type, $entity, $fie
             $content[$field_name]['#label_display'] = 'hidden';
           }
           else {
-            $content[$field_name] = '<span class="empty_field"></span>';
+            $content[$field_name] = array(
+              '#markup' => '<span class="empty_field"></span>',
+              '#empty' => TRUE,
+            );
           }
           $column[] = array(
             'data' => $content[$field_name],
@@ -124,6 +127,11 @@ function field_collection_table_field_formatter_view($entity_type, $entity, $fie
         '#header' => $header,
         '#rows' => $rows,
       );
+
+      if (variable_get('field_collection_table_hide_empty', FALSE)) {
+        $element[0]['#theme'] = 'table__field_collection_table';
+        $element[0]['#settings']['empty'] = TRUE;
+      }
       break;
   }
 
@@ -149,13 +157,29 @@ function field_collection_table_field_formatter_settings_summary($field, $instan
 /**
  * Implements hook_theme().
  */
-function field_collection_table_theme() {
+function field_collection_table_theme($existing, $type, $theme, $path) {
+  $base = array(
+    'file' => 'theme.inc',
+    'path' => $path . '/theme',
+  );
   return array(
-    'field_collection_table_multiple_value_field' => array(
+    'field_collection_table_multiple_value_field' => $base + array(
       'render element' => 'element',
     ),
-    'field_collection_table_multiple_value_fields' => array(
+    'field_collection_table_multiple_value_fields' => $base + array(
       'render element' => 'element',
+    ),
+    'table__field_collection_table' => $base + array(
+      'variables' => array(
+        'header' => NULL,
+        'rows' => NULL,
+        'attributes' => array(),
+        'caption' => NULL,
+        'colgroups' => array(),
+        'sticky' => TRUE,
+        'empty' => '',
+        'settings' => array(),
+      ),
     ),
   );
 }
@@ -226,135 +250,8 @@ function field_collection_table_pre_render_multiple_fields($element) {
 }
 
 /**
- * Print a single row of multiple fields.
+ * Implements hook_entity_view().
  */
-function theme_field_collection_table_multiple_value_field($variables) {
-  $element = $variables['element'];
-  $header = array();
-  $cells = array();
-  foreach (field_info_instances($element['#entity_type'], $element['#bundle']) as $field_name => $instance) {
-    $field = &$element[$field_name];
-    if (empty($field)) {
-      continue;
-    }
-    if (isset($field['#language']) && isset($field[$field['#language']])) {
-      $header[] = $field[$field['#language']]['#title'];
-    }
-    elseif (isset($field['#title'])) {
-      $header[] = $field['#title'];
-    }
-    else {
-      $header[] = '';
-    }
-    $cells[] = array('data' => $field);
-  }
-  $element = array(
-    '#theme' => 'table',
-    '#header' => $header,
-    '#rows' => array($cells),
-  );
-  return drupal_render($element);
-}
-
-/**
- * Replacement for theme_field_multiple_value_form().
- *
- * Each field is printed in a separate cell.
- */
-function theme_field_collection_table_multiple_value_fields($variables) {
-  $element = $variables['element'];
-  $output = '';
-
-  if (isset($element['#cardinality']) && ($element['#cardinality'] > 1 || $element['#cardinality'] == FIELD_CARDINALITY_UNLIMITED)) {
-    $table_id = drupal_html_id($element['#field_name'] . '_values');
-    $order_class = $element['#field_name'] . '-delta-order';
-    $required = !empty($element['#required']) ? '<span class="form-required" title="' . t('This field is required. ') . '">*</span>' : '';
-
-    $rows = array();
-
-    // Sort items according to '_weight' (needed when the form comes back after
-    // preview or failed validation)
-    $items = array();
-    foreach (element_children($element) as $key) {
-      if ($key === 'add_more') {
-        $add_more_button = &$element[$key];
-      }
-      else {
-        $items[] = &$element[$key];
-      }
-    }
-    usort($items, '_field_sort_items_value_helper');
-
-    $header = array(
-      array(
-        'data' => '<label>' . t('!title: !required', array('!title' => $element['#title'], '!required' => $required)) . "</label>",
-        'class' => array('field-label'),
-      ),
-    );
-
-    // Add the items as table rows.
-    foreach ($items as $key => $item) {
-      uasort($item, 'element_sort');
-      $item['_weight']['#attributes']['class'] = array($order_class);
-      $cells = array(
-        array('data' => '', 'class' => array('field-multiple-drag')),
-      );
-      foreach (element_children($item) as $child) {
-        if (isset($item[$child]['#language']) && $key == 0) {
-          $header[] = array(
-            'data' => '<label>' . t('!title', array('!title' => $item[$child][$item[$child]['#language']]['#title'])) . '</label>',
-            'class' => array('field-label'),
-          );
-        }
-        $cells[] = array('data' => $item[$child]);
-      }
-      $rows[] = array(
-        'data' => $cells,
-        'class' => array('draggable'),
-      );
-    }
-    $header[] = t('Order');
-
-    $output = array(
-      '#prefix' => '<div class="form-item">',
-      '#suffix' => '</div>',
-    );
-    $output[] = array(
-      '#theme' => 'table',
-      '#header' => $header,
-      '#rows' => $rows,
-      '#attributes' => array(
-        'id' => $table_id,
-        'class' => array(
-          'field-multiple-table',
-        ),
-      ),
-    );
-    if (!empty($element['#description'])) {
-      $output[] = array(
-        '#prefix' => '<div class="description">',
-        '#suffix' => '</div>',
-        '#markup' => $element['#description'],
-      );
-    }
-    $output[] = $add_more_button + array(
-      '#prefix' => '<div class="clearfix">',
-      '#suffix' => '</div>',
-    );
-
-    $output = drupal_render($output);
-
-    drupal_add_tabledrag($table_id, 'order', 'sibling', $order_class);
-  }
-  else {
-    foreach (element_children($element) as $key) {
-      $output .= drupal_render($element[$key]);
-    }
-  }
-
-  return $output;
-}
-
 function field_collection_table_entity_view($entity, $type, $view_mode, $langcode) {
   if (get_class($entity) != 'FieldCollectionItemEntity') {
     return;
