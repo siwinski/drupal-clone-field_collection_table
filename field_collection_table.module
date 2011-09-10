@@ -70,7 +70,8 @@ function field_collection_table_field_formatter_view($entity_type, $entity, $fie
         if (empty($field_collection)) {
           continue;
         }
-        $content = $field_collection->buildContent();
+        $view = $field_collection->view();
+        $content = $view['field_collection_item'][$field_collection->identifier()];
         $column = array();
         foreach ($field_names as $field_name) {
           if (isset($content[$field_name])) {
