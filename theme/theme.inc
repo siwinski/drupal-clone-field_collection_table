@@ -8,7 +8,7 @@ function theme_field_collection_table_multiple_value_field($variables) {
   $header = array();
   $cells = array();
   foreach (field_info_instances($element['#entity_type'], $element['#bundle']) as $field_name => $instance) {
-    $field = &$element[$field_name];
+    $field = $element[$field_name];
     if (empty($field)) {
       continue;
     }
@@ -22,13 +22,18 @@ function theme_field_collection_table_multiple_value_field($variables) {
       $header[] = '';
     }
     $cells[] = array('data' => $field);
+    unset($element[$field_name]);
   }
-  $element = array(
+
+  $element['field_collection_table'] = array(
     '#theme' => 'table',
     '#header' => $header,
     '#rows' => array($cells),
+    '#weight' => 0,
   );
-  return drupal_render($element);
+
+  $element['#sorted'] = FALSE;
+  return drupal_render_children($element);
 }
 
 /**
