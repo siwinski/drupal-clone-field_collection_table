@@ -195,6 +195,9 @@ function _field_collection_table_get_title($field) {
   elseif (isset($field['#title'])) {
     $title = empty($field['#is_weight']) ? $field['#title'] : t('Order');
   }
+  elseif (isset($field['#value'])) {
+    $title = $field['#value'];
+  }
 
   return $title;
 }
