@@ -7,7 +7,11 @@ function theme_field_collection_table_multiple_value_field($variables) {
   $element = $variables['element'];
   $header = array();
   $cells = array();
-  foreach (field_info_instances($element['#entity_type'], $element['#bundle']) as $field_name => $instance) {
+
+  // Order field widgets by their widget weight.
+  $instances = field_info_instances($element['#entity_type'], $element['#bundle']);
+  uasort($instances, '_field_collection_table_sort_items_widget_helper');
+  foreach ($instances as $field_name => $instance) {
     if (empty($element[$field_name])) {
       continue;
     }
@@ -28,6 +32,15 @@ function theme_field_collection_table_multiple_value_field($variables) {
 
   $element['#sorted'] = FALSE;
   return drupal_render_children($element);
+}
+
+/**
+ * Comparison function for sorting field instances by their widget's weight.
+ */
+function _field_collection_table_sort_items_widget_helper($a, $b) {
+  $a_weight = (is_array($a) && isset($a['widget']['weight']) ? $a['widget']['weight'] : 0);
+  $b_weight = (is_array($b) && isset($b['widget']['weight']) ? $b['widget']['weight'] : 0);
+  return $a_weight - $b_weight;
 }
 
 /**
