@@ -78,6 +78,7 @@ function theme_field_collection_table_multiple_value_fields($variables) {
         'class' => array('field-label'),
       ),
     );
+    $help_tooltips_js_loaded = FALSE;
 
     // Add the items as table rows.
     foreach ($items as $key => $item) {
@@ -86,16 +87,95 @@ function theme_field_collection_table_multiple_value_fields($variables) {
       $cells = array(
         array('data' => '', 'class' => array('field-multiple-drag')),
       );
+      $help_format = isset($item['#instance']['widget']['settings']['field_collection_table_help']) ?
+        $item['#instance']['widget']['settings']['field_collection_table_help'] : 'field';
+      $help_is_tooltip = FALSE !== strpos($help_format, '_tooltip');
+
+      // Load tooltip JS if tooltip help format and not already loaded.
+      if ($help_is_tooltip && !$help_tooltips_js_loaded) {
+        drupal_add_library('system', 'ui.tooltip');
+        drupal_add_js(drupal_get_path('module', 'field_collection_table') . '/theme/tooltips.js', 'file');
+        $help_tooltips_loaded = TRUE;
+      }
+
       foreach (element_children($item) as $field_name) {
-        // Only add the header once.
+        if (isset($item[$field_name]['#language'])) {
+          $item_language = $item[$field_name]['#language'];
+          $item_help = isset($item[$field_name][$item_language]['#description']) ?
+            $item[$field_name][$item_language]['#description'] : '';
+          $item_is_required = $item[$field_name][$item_language]['#required'];
+        }
+        else {
+          $item_language = '';
+          $item_help = '';
+          $item_is_required = FALSE;
+        }
+
+        // Remove help text from item if tooltip help format or a header help format.
+        if ($help_is_tooltip || (0 === strpos($help_format, 'header'))) {
+          // Is there a better way to do this?...
+
+          $item[$field_name][$item_language]['#description'] = '';
+
+          foreach (element_children($item[$field_name][$item_language]) as $index) {
+            $item[$field_name][$item_language][$index]['#description'] = '';
+
+            if (isset($item[$field_name][$item_language][$index]['value'])) {
+              $item[$field_name][$item_language][$index]['value']['#description'] = '';
+            }
+            // TODO: Fix for other field types (such as link).
+          }
+        }
+
+        // Only add the header/tooltips once.
         if ($key == 0) {
+          $header_data = t('!title', array('!title' => _field_collection_table_get_title($item[$field_name])));
+
+          if ($item_is_required) {
+            $header_data .= ' ' . theme('form_required_marker');
+          }
+
+          $header_data = '<label style="display:inline-block;">' . $header_data . '</label>';
+
+          if (!empty($item_help)) {
+            if ('header_tooltip' == $help_format) {
+              $header_data .= sprintf('<span class="ui-icon ui-icon-help"%s></span>',
+                drupal_attributes(array(
+                  'style' => 'display:inline-block;',
+                  'title' => $item_help,
+                ))
+              );
+            }
+            elseif ('header' == $help_format) {
+              $header_data .= '<div class="description">' . $item_help . '</div>';
+            }
+          }
+
           $header[] = array(
-            'data' => '<label>' . t('!title', array('!title' => _field_collection_table_get_title($item[$field_name]))) . '</label>',
+            'data' => $header_data,
             'class' => array('field-label'),
           );
         }
+
+        // Add title attribute to field if field_tooltip help format.
+        if (('field_tooltip' == $help_format) && !empty($item_help)) {
+          $item[$field_name][$item_language]['#attributes']['title'] = array($item_help);
+
+          foreach (element_children($item[$field_name][$item_language]) as $index) {
+            // Is there a better way to do this?...
+
+            $item[$field_name][$item_language][$index]['#attributes']['title'] = $item_help;
+
+            if (isset($item[$field_name][$item_language][$index]['value'])) {
+              $item[$field_name][$item_language][$index]['value']['#attributes']['title'] = $item_help;
+            }
+            // TODO: Fix for other field types (such as link).
+          }
+        }
+
         $cells[] = array('data' => $item[$field_name]);
       }
+
       $rows[] = array(
         'data' => $cells,
         'class' => array('draggable'),
@@ -117,6 +197,10 @@ function theme_field_collection_table_multiple_value_fields($variables) {
         ),
       ),
     );
+    if ($help_is_tooltip) {
+      // Add attribute to table so JS can find table by selector.
+      $output['field_collection_table']['#attributes']['data-field-collection-table-help-tooltips'] = '';
+    }
     if (!empty($element['#description'])) {
       $output[] = array(
         '#prefix' => '<div class="description">',

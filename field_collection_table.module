@@ -306,3 +306,26 @@ function field_collection_table_field_widget_form(&$form, &$form_state, $field, 
   }
   return $element;
 }
+
+/**
+ * Implements hook_field_widget_settings_form().
+ */
+function field_collection_table_field_widget_settings_form($field, $instance) {
+  $widget = $instance['widget'];
+  $settings = $widget['settings'];
+  $fields = array();
+
+  $fields['field_collection_table_help'] = array(
+    '#type' => 'select',
+    '#title' => ('Field help text display'),
+    '#options' => array(
+      'field' => t('Field: After (default)'),
+      'field_tooltip' => t('Field: Tooltip'),
+      'header' => t('Header: After'),
+      'header_tooltip' => t('Header: Tooltip'),
+    ),
+    '#default_value' => isset($settings['field_collection_table_help']) ? $settings['field_collection_table_help'] : 'field',
+  );
+
+  return $fields;
+}
